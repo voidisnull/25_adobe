@@ -1,7 +1,7 @@
 
 from flask import Flask, request, jsonify
-import methods
-import insights_processor
+import services.methods as methods
+import services.insights_processor as insights_processor
 from dotenv import load_dotenv
 
 load_dotenv()

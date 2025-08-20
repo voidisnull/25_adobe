@@ -14,6 +14,13 @@ until pg_isready -U postgres; do sleep 1; done
 
 # enable pgvector
 psql -U postgres -c "CREATE EXTENSION IF NOT EXISTS vector;"
+psql -U postgres -c "CREATE DATABASE adobe;"
 
-# stop again (supervisord will handle actual start)
-su - postgres -c "/usr/lib/postgresql/15/bin/pg_ctl -D /var/lib/postgresql/data stop"
+sleep 10
+cd /app
+
+go run ./main.go&
+python3 -m services&
+
+cd /app/app
+npm run dev

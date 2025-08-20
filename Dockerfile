@@ -25,7 +25,6 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN go build -o /usr/local/bin/backend ./main.go
 
 # --- Python services ---
 RUN pip3 install --no-cache-dir --break-system-packages -r requirements.txt
@@ -38,16 +37,12 @@ WORKDIR /app
 RUN mkdir -p /app/static && cp -r /app/app/dist/* /app/static/
 
 # --- PostgreSQL init ---
-RUN mkdir -p /var/lib/postgresql/data /var/run/postgresql /var/log/supervisor
+RUN mkdir -p /var/lib/postgresql/data /var/run/postgresql
 RUN chown -R postgres:postgres /var/lib/postgresql /var/run/postgresql
 
-# Create initdb script
-COPY ./docker/init-db.sh /docker-entrypoint-initdb.d/init-db.sh
-RUN chmod +x /docker-entrypoint-initdb.d/init-db.sh
-
-# --- Supervisor config ---
-COPY /docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY ./docker/run.sh ./run.sh
+RUN chmod +x ./run.sh
 
 EXPOSE 8080
 
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+CMD ["./run.sh"]
