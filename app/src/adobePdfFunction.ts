@@ -80,7 +80,6 @@ export const loadAdobeSDK = (): void => {
 };
 
 let currentViewInstance: AdobeDCView | null = null;
-let directSearchInProgress = false;
 
 // Wait function removed - no longer needed
 
@@ -231,8 +230,13 @@ export const performRegularSearch = async (
   searchTerm: string,
   onSearchResult: (result: SearchResultInfo) => void
 ): Promise<SearchObject> => {
+  // Extract only the first line for search
+  const firstLine = searchTerm.split('\n')[0].trim();
+  console.log(`🔍 Regular search for first line: "${firstLine}"`);
+  console.log(`📝 Original search term: "${searchTerm}"`);
+  
   const apis = await viewer.getAPIs();
-  const searchResult = await apis.search(searchTerm);
+  const searchResult = await apis.search(firstLine);
   
   const callbackFunction = async (searchResultInfo: SearchResultInfo): Promise<void> => {
     console.log("Regular search result: ", searchResultInfo);
@@ -249,17 +253,14 @@ export const performDirectSearch = async (
   viewer: AdobeViewer,
   pageNumber: number,
   searchContent: string,
-  customComment: string,
   onSearchResult: (result: SearchResultInfo) => void,
   onSearchComplete: (success: boolean, message: string) => void
 ): Promise<SearchObject | null> => {
-  if (directSearchInProgress) {
-    onSearchComplete(false, `❌ Search already in progress`);
-    return null;
-  }
-  directSearchInProgress = true;
   try {
-    console.log(`🔍 Starting direct search for "${searchContent}" on page ${pageNumber}`);
+    // Extract only the first line for search
+    const firstLine = searchContent.split('\n')[0].trim();
+    console.log(`🔍 Starting direct search for first line: "${firstLine}" on page ${pageNumber}`);
+    console.log(`📝 Original content: "${searchContent}"`);
     
     const apis = await viewer.getAPIs();
     
@@ -269,7 +270,7 @@ export const performDirectSearch = async (
     
     // Wait for page to load and render
     console.log("⏳ Waiting for page to load...");
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise(resolve => setTimeout(resolve, 3000));
     
     // Clear any existing search highlights
     try {
@@ -279,65 +280,51 @@ export const performDirectSearch = async (
       console.log("No existing selection to clear");
     }
     
-    // Search for the content
-    console.log(`🔍 Searching for: "${searchContent}"`);
-    const searchResult = await apis.search(searchContent);
+    // Search for only the first line
+    console.log(`🔍 Searching for first line: "${firstLine}"`);
+    const searchResult = await apis.search(firstLine);
     console.log("✅ Search initiated");
     
     let searchCompleted = false;
-    let hops = 0;
-    const maxHops = 100; // tighter cap to avoid loops
-
+    let advancedAttempts = 0;
+    const maxAdvance = 100; // safety bound to avoid infinite loops
+    
     const callbackFunction = async (searchResultInfo: SearchResultInfo): Promise<void> => {
-      if (searchCompleted) return;
-
-      // No matches anywhere
+      console.log("📊 Search result callback:", searchResultInfo);
+      onSearchResult(searchResultInfo);
+      
       if (searchResultInfo.status === 'COMPLETED' && searchResultInfo.totalResults === 0) {
-        searchCompleted = true;
-        try { await searchResult.clear(); } catch {}
-        onSearchComplete(false, `❌ NOT FOUND ON PAGE ${pageNumber}\n\nContent: "${searchContent}"`);
+        onSearchComplete(false, `❌ NOT FOUND\n\nFirst line: "${firstLine}"\nPage: ${pageNumber}\n\n🔍 Try checking:\n- Spelling and capitalization\n- Different page number\n- Partial text instead of full phrase`);
         return;
       }
 
-      if (!searchResultInfo.currentResult || searchResultInfo.totalResults <= 0) {
-        return;
-      }
-
-      const currentPage = searchResultInfo.currentResult.pageNumber;
-
-      // Keep advancing until we land on the requested page
-      if (currentPage !== pageNumber) {
-        // Immediately clear any highlight on wrong page
-        try { await apis.clearPageSelection(currentPage); } catch {}
-        if (searchResultInfo.status === 'COMPLETED' || hops >= maxHops) {
-          searchCompleted = true;
-          try { await searchResult.clear(); } catch {}
-          onSearchComplete(false, `❌ NOT FOUND ON PAGE ${pageNumber}\n\nContent: "${searchContent}"`);
-          return;
+      // If there are results, try to land on the target page's match first
+      if (!searchCompleted && searchResultInfo.currentResult && searchResultInfo.totalResults > 0) {
+        const currentPage = searchResultInfo.currentResult.pageNumber;
+        if (currentPage !== pageNumber && advancedAttempts < maxAdvance) {
+          advancedAttempts += 1;
+          try {
+            await searchResult.next();
+            return; // wait for next callback
+          } catch (e) {
+            // If advancing fails, proceed with current result
+          }
         }
-        hops += 1;
-        try {
-          await searchResult.next();
-        } catch {}
-        return;
+
+        searchCompleted = true;
+        console.log(`✅ Found first line "${firstLine}" on page ${searchResultInfo.currentResult.pageNumber}`);
+        onSearchComplete(true, `✅ SUCCESS!\n\nFound first line: "${firstLine}"\nPage: ${searchResultInfo.currentResult.pageNumber}\nResults: ${searchResultInfo.currentResult.index + 1} of ${searchResultInfo.totalResults}\n\n✨ Content highlighted successfully.`);
       }
-
-      // Found on requested page
-      searchCompleted = true;
-      try { await searchResult.clear(); } catch {}
-      onSearchComplete(true, `✅ SUCCESS!\n\nFound: "${searchContent}"\nPage: ${searchResultInfo.currentResult.pageNumber}\nResult: ${searchResultInfo.currentResult.index + 1} of ${searchResultInfo.totalResults}`);
     };
-
+    
     await searchResult.onResultsUpdate(callbackFunction);
-    console.log("🎯 Search initiated successfully (page-restricted)");
+    console.log("🎯 Search initiated successfully");
     
     return searchResult;
   } catch (error) {
     console.error("❌ Direct search error:", error);
     onSearchComplete(false, `❌ Search Failed\n\nError: ${error}\n\nPlease check:\n✓ PDF is fully loaded\n✓ Page number exists\n✓ Search content spelling`);
     return null;
-  } finally {
-    directSearchInProgress = false;
   }
 };
 
