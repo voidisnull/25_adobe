@@ -51,7 +51,7 @@ A platform to **upload, explore, and connect knowledge across PDFs** with advanc
 ## 🐳 Run with Docker
 
 ```bash
-docker run -e ADOBE_EMBED_API_KEY=<> -e GOOGLE_API_KEY=<> -p 8080:8080 <image_name>
+docker run -e ADOBE_EMBED_API_KEY=<> -e GOOGLE_API_KEY=<> -p 8080:8080 -p 8081:8081 <image_name>
 ```
 
 
