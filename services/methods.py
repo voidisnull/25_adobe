@@ -10,7 +10,7 @@ from pgvector import Vector
 import google.generativeai as genai
 import logging
 
-from chunker import chunk_page_by_paragraphs
+from services.chunker import chunk_page_by_paragraphs
 
 from dotenv import load_dotenv
 
