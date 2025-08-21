@@ -58,3 +58,11 @@ docker run -e ADOBE_EMBED_API_KEY=<> -e GOOGLE_API_KEY=<> -p 8080:8080 -p 8081:8
 ```bash
  ADOBE embeded api : 5da540d215fd4f1a9cd89f97a45bae83
 ```
+
+## Our Video Link 
+
+ In case of some any issue with docker please consider this video
+
+```bash 
+https://drive.google.com/drive/folders/1BDh66AfRQ__DbGhgpxGt4lYS0AZfLHY-?usp=sharing
+```
